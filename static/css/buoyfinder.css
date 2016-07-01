@@ -1,0 +1,58 @@
+/**
+ * Custom style for Rhodycast App
+ */
+
+/**
+ * Need to set padding for the body so content flows beneath the navbar
+ */
+body {
+    padding-top: 50px;
+    padding-right: 0px !important
+}
+
+/**
+ * Custom navbar theming
+ */
+.navbar {
+    background-color: #0D9EFF; /* background color will be blue for all browsers */
+    background-image: none;
+    background-repeat: no-repeat;
+    border: #0D9EFF;
+    filter: none;
+    padding-bottom: 0;
+}
+
+.navbar .navbar-brand {
+    color: #FFFFFF;
+}
+
+.navbar .navbar-brand:hover {
+    color: #00399C;
+}
+
+.navbar .nav > li > a {
+    color: #FFFFFF;
+}
+
+.navbar .nav > li > a:hover {
+    color: #00399C;
+}
+
+.navbar .nav > li > a:active {
+    color: #00399C;
+}
+
+/**
+ * Beta tag
+ */
+#betaTag {
+    background-color: #FFFFFF;
+    color: #0D9EFF;
+    border-radius: 5px;
+    font-size: 15px;
+    padding: 3px;
+}
+
+#betaTag li > a:hover, a:hover span {
+    background-color: #00399C !important;
+}
