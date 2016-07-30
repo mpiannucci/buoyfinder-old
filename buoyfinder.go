@@ -64,11 +64,11 @@ func buoyHandler(w http.ResponseWriter, r *http.Request) {
 	stations := surfnerd.BuoyStations{}
 	xml.Unmarshal(stationsContents, &stations)
 
-	closestBuoy := stations.FindClosestActiveBuoy(surfnerd.NewLocationForLatLong(latitude, longitude))
+	closestBuoy := stations.FindClosestActiveWaveBuoy(surfnerd.NewLocationForLatLong(latitude, longitude))
 
 	// TODO: Get the closest buoy reading
 
 	// For now just print out the results
 	fmt.Fprintf(w, "Lat: %v\nLon: %v\nDate: %v\n", latitude, 360-longitude, time.Unix(rawdate, 0))
-	fmt.Fprintf(w, "ClosestStation: %v", closestBuoy.StationID)
+	fmt.Fprintf(w, "ClosestStations: %v", closestBuoy.StationID)
 }
