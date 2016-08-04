@@ -1,8 +1,8 @@
 package buoyfinder
 
 import (
+	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +16,15 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 )
+
+type ClosestBuoy struct {
+	RequestedLocation surfnerd.Location
+	RequestedDate     time.Time
+	TimeDiffFound     time.Duration
+	BuoyStationID     string
+	BuoyLocation      surfnerd.Location
+	BuoyData          surfnerd.BuoyItem
+}
 
 var indexTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/index.html"))
 var apiDocTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/apidoc.html"))
@@ -65,7 +74,8 @@ func closestBuoyHandler(w http.ResponseWriter, r *http.Request) {
 	stations := surfnerd.BuoyStations{}
 	xml.Unmarshal(stationsContents, &stations)
 
-	closestBuoy := stations.FindClosestActiveWaveBuoy(surfnerd.NewLocationForLatLong(latitude, longitude))
+	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
+	closestBuoy := stations.FindClosestActiveWaveBuoy(requestedLocation)
 	if closestBuoy == nil {
 		http.Error(w, "Could not find the closest buoy", http.StatusInternalServerError)
 		return
@@ -89,10 +99,23 @@ func closestBuoyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	closestBuoyData, _ := closestBuoy.FindConditionsForDateAndTime(requestedDate)
+	closestBuoyData, timeDiff := closestBuoy.FindConditionsForDateAndTime(requestedDate)
 
-	// For now just print out the results
-	fmt.Fprintf(w, "Lat: %v\nLon: %v\nDate: %v\n", latitude, 360-longitude, time.Unix(rawdate, 0))
-	fmt.Fprintf(w, "ClosestStations: %v\n", closestBuoy.StationID)
-	fmt.Fprintf(w, "Closest Buoy Data:\n\n%v", closestBuoyData)
+	closestBuoyContainer := ClosestBuoy{
+		RequestedLocation: requestedLocation,
+		RequestedDate:     requestedDate,
+		TimeDiffFound:     timeDiff,
+		BuoyStationID:     closestBuoy.StationID,
+		BuoyLocation:      *closestBuoy.Location,
+		BuoyData:          closestBuoyData,
+	}
+
+	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
+	if closestBuoyJsonErr != nil {
+		http.Error(w, closestBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(closestBuoyJson)
 }
