@@ -14,10 +14,10 @@ body {
  * Custom navbar theming
  */
 .navbar {
-    background-color: #0D9EFF; /* background color will be blue for all browsers */
+    background-color: #00B386; /* background color will be blue for all browsers */
     background-image: none;
     background-repeat: no-repeat;
-    border: #0D9EFF;
+    border: #00B386;
     filter: none;
     padding-bottom: 0;
 }
@@ -27,7 +27,7 @@ body {
 }
 
 .navbar .navbar-brand:hover {
-    color: #00399C;
+    color: #000099;
 }
 
 .navbar .nav > li > a {
@@ -35,11 +35,11 @@ body {
 }
 
 .navbar .nav > li > a:hover {
-    color: #00399C;
+    color: #000099;
 }
 
 .navbar .nav > li > a:active {
-    color: #00399C;
+    color: #000099;
 }
 
 /**
@@ -47,12 +47,12 @@ body {
  */
 #betaTag {
     background-color: #FFFFFF;
-    color: #0D9EFF;
+    color: #00B386;
     border-radius: 5px;
     font-size: 15px;
     padding: 3px;
 }
 
 #betaTag li > a:hover, a:hover span {
-    background-color: #00399C !important;
+    background-color: #000099 !important;
 }
