@@ -3,6 +3,7 @@ package buoyfinder
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -17,15 +18,6 @@ import (
 	"google.golang.org/appengine/urlfetch"
 )
 
-type ClosestBuoy struct {
-	RequestedLocation surfnerd.Location
-	RequestedDate     time.Time
-	TimeDiffFound     time.Duration
-	BuoyStationID     string
-	BuoyLocation      surfnerd.Location
-	BuoyData          surfnerd.BuoyItem
-}
-
 var indexTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/index.html"))
 var apiDocTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/apidoc.html"))
 
@@ -33,8 +25,10 @@ func init() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexHandler)
 	router.HandleFunc("/api", apiDocHandler)
-	router.HandleFunc("/api/{lat}/{lon}/{epoch}", closestBuoyDateHandler)
-	router.HandleFunc("/api/{lat}/{lon}", closestBuoyLatestHandler)
+	router.HandleFunc("/api/date/{lat}/{lon}/{epoch}", closestBuoyDateHandler)
+	router.HandleFunc("/api/latest/{lat}/{lon}", closestBuoyLatestHandler)
+	router.HandleFunc("/api/latest/{station}", latestForIDHandler)
+	router.HandleFunc("/api/date/{station}/{epoch}", dateBuoyIDHandler)
 
 	http.Handle("/", router)
 }
@@ -63,57 +57,27 @@ func closestBuoyDateHandler(w http.ResponseWriter, r *http.Request) {
 	longitude, _ := strconv.ParseFloat(vars["lon"], 64)
 	rawdate, _ := strconv.ParseInt(vars["epoch"], 10, 64)
 
-	// Find the closest buoy
-	stationsResp, stationsErr := client.Get(surfnerd.ActiveBuoysURL)
-	if stationsErr != nil {
-		http.Error(w, stationsErr.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer stationsResp.Body.Close()
-
-	stationsContents, _ := ioutil.ReadAll(stationsResp.Body)
-	stations := surfnerd.BuoyStations{}
-	xml.Unmarshal(stationsContents, &stations)
-
 	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
-	closestBuoy := stations.FindClosestActiveWaveBuoy(requestedLocation)
-	if closestBuoy == nil {
-		http.Error(w, "Could not find the closest buoy", http.StatusInternalServerError)
+	requestedDate := time.Unix(rawdate, 0)
+
+	// Find the closest buoy
+	closestBuoy, closestError := fetchClosestBuoy(client, requestedLocation)
+	if closestError != nil {
+		http.Error(w, closestError.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Get the buoy data
-	requestedDate := time.Unix(rawdate, 0)
 	if time.Since(requestedDate).Hours() < 1.0 {
-		buoyResp, buoyErr := client.Get(closestBuoy.CreateLatestReadingURL())
-		if buoyErr != nil {
-			http.Error(w, buoyErr.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer buoyResp.Body.Close()
-
-		buoyContents, _ := ioutil.ReadAll(buoyResp.Body)
-		rawBuoyData := string(buoyContents[:])
-
-		buoyParseError := closestBuoy.ParseRawLatestBuoyData(rawBuoyData)
-		if buoyParseError != nil {
-			http.Error(w, buoyParseError.Error(), http.StatusInternalServerError)
+		fetchBuoyError := fetchLatestBuoyData(client, closestBuoy)
+		if fetchBuoyError != nil {
+			http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		buoyResp, buoyErr := client.Get(closestBuoy.CreateDetailedWaveDataURL())
-		if buoyErr != nil {
-			http.Error(w, buoyErr.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer buoyResp.Body.Close()
-
-		buoyContents, _ := ioutil.ReadAll(buoyResp.Body)
-		rawBuoyData := strings.Fields(string(buoyContents))
-
-		buoyParseError := closestBuoy.ParseRawDetailedWaveData(rawBuoyData, 100000000)
-		if buoyParseError != nil {
-			http.Error(w, buoyParseError.Error(), http.StatusInternalServerError)
+		fetchBuoyError := fetchDetailedWaveBuoyData(client, closestBuoy)
+		if fetchBuoyError != nil {
+			http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -149,44 +113,23 @@ func closestBuoyLatestHandler(w http.ResponseWriter, r *http.Request) {
 	// Grab the user vars
 	latitude, _ := strconv.ParseFloat(vars["lat"], 64)
 	longitude, _ := strconv.ParseFloat(vars["lon"], 64)
+	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
 
 	// Find the closest buoy
-	stationsResp, stationsErr := client.Get(surfnerd.ActiveBuoysURL)
-	if stationsErr != nil {
-		http.Error(w, stationsErr.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer stationsResp.Body.Close()
-
-	stationsContents, _ := ioutil.ReadAll(stationsResp.Body)
-	stations := surfnerd.BuoyStations{}
-	xml.Unmarshal(stationsContents, &stations)
-
-	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
-	closestBuoy := stations.FindClosestActiveWaveBuoy(requestedLocation)
-	if closestBuoy == nil {
-		http.Error(w, "Could not find the closest buoy", http.StatusInternalServerError)
+	closestBuoy, closestError := fetchClosestBuoy(client, requestedLocation)
+	if closestError != nil {
+		http.Error(w, closestError.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Get the buoy data
+	buoyFetchError := fetchLatestBuoyData(client, closestBuoy)
+	if buoyFetchError != nil {
+		http.Error(w, buoyFetchError.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	requestedDate := time.Now()
-	buoyResp, buoyErr := client.Get(closestBuoy.CreateLatestReadingURL())
-	if buoyErr != nil {
-		http.Error(w, buoyErr.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer buoyResp.Body.Close()
-
-	buoyContents, _ := ioutil.ReadAll(buoyResp.Body)
-	rawBuoyData := string(buoyContents[:])
-
-	buoyParseError := closestBuoy.ParseRawLatestBuoyData(rawBuoyData)
-	if buoyParseError != nil {
-		http.Error(w, buoyParseError.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	closestBuoyData, timeDiff := closestBuoy.FindConditionsForDateAndTime(requestedDate)
 
 	closestBuoyContainer := ClosestBuoy{
@@ -206,4 +149,195 @@ func closestBuoyLatestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(closestBuoyJson)
+}
+
+func latestForIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+
+	stationID := vars["station"]
+
+	// Find the closest buoy
+	requestedBuoy, requestedError := fetchBuoyWithID(client, stationID)
+	if requestedError != nil {
+		http.Error(w, requestedError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get the buoy data
+	buoyFetchError := fetchLatestBuoyData(client, requestedBuoy)
+	if buoyFetchError != nil {
+		http.Error(w, buoyFetchError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	requestedDate := time.Now()
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	requestedBuoyContainer := ClosestBuoy{
+		RequestedDate: requestedDate,
+		TimeDiffFound: timeDiff,
+		BuoyStationID: requestedBuoy.StationID,
+		BuoyLocation:  *requestedBuoy.Location,
+		BuoyData:      requestedBuoyData,
+	}
+
+	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
+	if requestedBuoyJsonErr != nil {
+		http.Error(w, requestedBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(requestedBuoyJson)
+}
+
+func dateBuoyIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+
+	// Grab the user vars
+	stationID := vars["station"]
+	rawdate, _ := strconv.ParseInt(vars["epoch"], 10, 64)
+
+	requestedDate := time.Unix(rawdate, 0)
+
+	// Find the closest buoy
+	requestedBuoy, requestedError := fetchBuoyWithID(client, stationID)
+	if requestedError != nil {
+		http.Error(w, requestedError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get the buoy data
+	if time.Since(requestedDate).Hours() < 1.0 {
+		fetchBuoyError := fetchLatestBuoyData(client, requestedBuoy)
+		if fetchBuoyError != nil {
+			http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		fetchBuoyError := fetchDetailedWaveBuoyData(client, requestedBuoy)
+		if fetchBuoyError != nil {
+			http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	requestedBuoyContainer := ClosestBuoy{
+		RequestedDate: requestedDate,
+		TimeDiffFound: timeDiff,
+		BuoyStationID: requestedBuoy.StationID,
+		BuoyLocation:  *requestedBuoy.Location,
+		BuoyData:      requestedBuoyData,
+	}
+
+	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
+	if requestedBuoyJsonErr != nil {
+		http.Error(w, requestedBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(requestedBuoyJson)
+}
+
+func fetchBuoyWithID(client *http.Client, stationID string) (*surfnerd.Buoy, error) {
+	stationsResponse, stationsError := client.Get(surfnerd.ActiveBuoysURL)
+	if stationsError != nil {
+		return nil, stationsError
+	}
+	defer stationsResponse.Body.Close()
+
+	stationsContents, _ := ioutil.ReadAll(stationsResponse.Body)
+	stations := surfnerd.BuoyStations{}
+	xml.Unmarshal(stationsContents, &stations)
+
+	requestedBuoy := stations.FindBuoyByID(stationID)
+	if requestedBuoy == nil {
+		return nil, errors.New("Could not find the requested buoy")
+	}
+
+	return requestedBuoy, nil
+}
+
+func fetchClosestBuoy(client *http.Client, requestedLocation surfnerd.Location) (*surfnerd.Buoy, error) {
+	stationsResponse, stationsError := client.Get(surfnerd.ActiveBuoysURL)
+	if stationsError != nil {
+		return nil, stationsError
+	}
+	defer stationsResponse.Body.Close()
+
+	stationsContents, _ := ioutil.ReadAll(stationsResponse.Body)
+	stations := surfnerd.BuoyStations{}
+	xml.Unmarshal(stationsContents, &stations)
+
+	closestBuoy := stations.FindClosestActiveWaveBuoy(requestedLocation)
+	if closestBuoy == nil {
+		return nil, errors.New("Could not find the closest buoy")
+	}
+
+	return closestBuoy, nil
+}
+
+func fetchLatestBuoyData(client *http.Client, buoy *surfnerd.Buoy) error {
+	buoyResponse, buoyError := client.Get(buoy.CreateLatestReadingURL())
+	if buoyError != nil {
+		return buoyError
+	}
+	defer buoyResponse.Body.Close()
+
+	buoyContents, _ := ioutil.ReadAll(buoyResponse.Body)
+	rawBuoyData := string(buoyContents[:])
+
+	buoyParseError := buoy.ParseRawLatestBuoyData(rawBuoyData)
+	if buoyParseError != nil {
+		return buoyParseError
+	}
+
+	return nil
+}
+
+func fetchStandardBuoyData(client *http.Client, buoy *surfnerd.Buoy) error {
+	buoyResponse, buoyError := client.Get(buoy.CreateStandardDataURL())
+	if buoyError != nil {
+		return buoyError
+	}
+	defer buoyResponse.Body.Close()
+
+	buoyContents, _ := ioutil.ReadAll(buoyResponse.Body)
+	rawBuoyData := strings.Fields(string(buoyContents))
+
+	buoyParseError := buoy.ParseRawStandardData(rawBuoyData, 100000000)
+	if buoyParseError != nil {
+		return buoyParseError
+	}
+
+	return nil
+}
+
+func fetchDetailedWaveBuoyData(client *http.Client, buoy *surfnerd.Buoy) error {
+	buoyResponse, buoyError := client.Get(buoy.CreateDetailedWaveDataURL())
+	if buoyError != nil {
+		return buoyError
+	}
+	defer buoyResponse.Body.Close()
+
+	buoyContents, _ := ioutil.ReadAll(buoyResponse.Body)
+	rawBuoyData := strings.Fields(string(buoyContents))
+
+	buoyParseError := buoy.ParseRawDetailedWaveData(rawBuoyData, 100000000)
+	if buoyParseError != nil {
+		return buoyParseError
+	}
+
+	return nil
 }
