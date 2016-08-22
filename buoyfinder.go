@@ -100,6 +100,7 @@ func closestBuoyDateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(closestBuoyJson)
 }
 
@@ -148,6 +149,7 @@ func closestBuoyLatestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(closestBuoyJson)
 }
 
@@ -192,6 +194,7 @@ func latestForIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(requestedBuoyJson)
 }
 
@@ -247,6 +250,7 @@ func dateBuoyIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(requestedBuoyJson)
 }
 
