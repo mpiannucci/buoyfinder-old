@@ -13,4 +13,5 @@ type ClosestBuoy struct {
 	BuoyStationID     string
 	BuoyLocation      surfnerd.Location
 	BuoyData          surfnerd.BuoyItem
+	WaveSpectra       surfnerd.BuoySpectraItem
 }
