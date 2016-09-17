@@ -223,14 +223,14 @@ func latestEnergyIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestedDate := time.Now()
-	requestedBuoyData, timeDiff := requestedBuoy.FindWaveSpectraForDateAndTime(requestedDate)
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
 
 	requestedBuoyContainer := ClosestBuoy{
 		RequestedDate: requestedDate,
 		TimeDiffFound: timeDiff,
 		BuoyStationID: requestedBuoy.StationID,
 		BuoyLocation:  *requestedBuoy.Location,
-		WaveSpectra:   requestedBuoyData,
+		BuoyData:      requestedBuoyData,
 	}
 
 	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
