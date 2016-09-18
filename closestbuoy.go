@@ -12,5 +12,5 @@ type ClosestBuoy struct {
 	TimeDiffFound     time.Duration
 	BuoyStationID     string
 	BuoyLocation      surfnerd.Location
-	BuoyData          surfnerd.BuoyItem
+	BuoyData          surfnerd.BuoyDataItem
 }
