@@ -25,6 +25,7 @@ func init() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexHandler)
 	router.HandleFunc("/api", apiDocHandler)
+	router.HandleFunc("/api/stations", findAllStationsHandler)
 	router.HandleFunc("/api/date/{lat}/{lon}/{epoch}", closestBuoyDateHandler)
 	router.HandleFunc("/api/latest/{lat}/{lon}", closestBuoyLatestHandler)
 	router.HandleFunc("/api/latest/{station}", latestForIDHandler)
@@ -44,6 +45,24 @@ func apiDocHandler(w http.ResponseWriter, r *http.Request) {
 	if err := apiDocTemplate.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func findAllStationsHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	stationsResponse, _ := client.Get(surfnerd.ActiveBuoysURL)
+	defer stationsResponse.Body.Close()
+
+	stationsContents, _ := ioutil.ReadAll(stationsResponse.Body)
+	stations := surfnerd.BuoyStations{}
+	xml.Unmarshal(stationsContents, &stations)
+	stationsJson, _ := stations.ToJSON()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(stationsJson)
 }
 
 func closestBuoyDateHandler(w http.ResponseWriter, r *http.Request) {
