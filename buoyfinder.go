@@ -26,6 +26,7 @@ func init() {
 	router.HandleFunc("/", indexHandler)
 	router.HandleFunc("/api", apiDocHandler)
 	router.HandleFunc("/api/stations", findAllStationsHandler)
+	router.HandleFunc("/api/stationinfo/{station}", findStationInfoHandler)
 	router.HandleFunc("/api/date/{lat}/{lon}/{epoch}", closestBuoyDateHandler)
 	router.HandleFunc("/api/latest/{lat}/{lon}", closestBuoyLatestHandler)
 	router.HandleFunc("/api/latest/{station}", latestForIDHandler)
@@ -63,6 +64,31 @@ func findAllStationsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(stationsJson)
+}
+
+func findStationInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+	stationID := vars["station"]
+
+	requestedBuoy, requestedBuoyError := fetchBuoyWithID(client, stationID)
+	if requestedBuoyError != nil {
+		http.Error(w, requestedBuoyError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	buoyJson, buoyJsonErr := requestedBuoy.ToJSON()
+	if buoyJsonErr != nil {
+		http.Error(w, buoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(buoyJson)
 }
 
 func closestBuoyDateHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +205,6 @@ func latestForIDHandler(w http.ResponseWriter, r *http.Request) {
 	client := urlfetch.Client(ctx)
 
 	vars := mux.Vars(r)
-
 	stationID := vars["station"]
 
 	// Find the closest buoy
@@ -219,7 +244,6 @@ func latestEnergyIDHandler(w http.ResponseWriter, r *http.Request) {
 	client := urlfetch.Client(ctx)
 
 	vars := mux.Vars(r)
-
 	stationID := vars["station"]
 
 	// Find the closest buoy
