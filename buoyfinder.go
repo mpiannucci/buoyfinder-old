@@ -199,7 +199,6 @@ func latestForIDHandler(w http.ResponseWriter, r *http.Request) {
 		RequestedDate: requestedDate,
 		TimeDiffFound: timeDiff,
 		BuoyStationID: requestedBuoy.StationID,
-		BuoyLocation:  *requestedBuoy.Location,
 		BuoyData:      requestedBuoyData,
 	}
 
@@ -245,7 +244,6 @@ func latestEnergyIDHandler(w http.ResponseWriter, r *http.Request) {
 		RequestedDate: requestedDate,
 		TimeDiffFound: timeDiff,
 		BuoyStationID: requestedBuoy.StationID,
-		BuoyLocation:  *requestedBuoy.Location,
 		BuoyData:      requestedBuoyData,
 	}
 
@@ -297,7 +295,6 @@ func dateBuoyIDHandler(w http.ResponseWriter, r *http.Request) {
 		RequestedDate: requestedDate,
 		TimeDiffFound: timeDiff,
 		BuoyStationID: requestedBuoy.StationID,
-		BuoyLocation:  *requestedBuoy.Location,
 		BuoyData:      requestedBuoyData,
 	}
 
