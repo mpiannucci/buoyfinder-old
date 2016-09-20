@@ -183,11 +183,7 @@ func latestForIDHandler(w http.ResponseWriter, r *http.Request) {
 	stationID := vars["station"]
 
 	// Find the closest buoy
-	requestedBuoy, requestedError := fetchBuoyWithID(client, stationID)
-	if requestedError != nil {
-		http.Error(w, requestedError.Error(), http.StatusInternalServerError)
-		return
-	}
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
 
 	// Get the buoy data
 	buoyFetchError := fetchLatestBuoyData(client, requestedBuoy)
@@ -228,11 +224,7 @@ func latestEnergyIDHandler(w http.ResponseWriter, r *http.Request) {
 	stationID := vars["station"]
 
 	// Find the closest buoy
-	requestedBuoy, requestedError := fetchBuoyWithID(client, stationID)
-	if requestedError != nil {
-		http.Error(w, requestedError.Error(), http.StatusInternalServerError)
-		return
-	}
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
 
 	// Get the buoy data
 	buoyFetchError := fetchRawSpectraBuoyData(client, requestedBuoy)
@@ -243,6 +235,11 @@ func latestEnergyIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestedDate := time.Now()
 	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	// Convert to feet!
+	requestedBuoyData.WaveSummary.ConvertToImperialUnits()
+	requestedBuoyData.SwellWaveComponent.ConvertToImperialUnits()
+	requestedBuoyData.WindWaveComponent.ConvertToImperialUnits()
 
 	requestedBuoyContainer := ClosestBuoy{
 		RequestedDate: requestedDate,
@@ -276,12 +273,8 @@ func dateBuoyIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestedDate := time.Unix(rawdate, 0)
 
-	// Find the closest buoy
-	requestedBuoy, requestedError := fetchBuoyWithID(client, stationID)
-	if requestedError != nil {
-		http.Error(w, requestedError.Error(), http.StatusInternalServerError)
-		return
-	}
+	// Create the requested buoy
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
 
 	// Get the buoy data
 	if time.Since(requestedDate).Hours() < 1.0 {
