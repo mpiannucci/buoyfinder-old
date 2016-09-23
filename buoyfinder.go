@@ -37,6 +37,7 @@ func init() {
 	router.HandleFunc("/api/date/weather/{lat}/{lon}/{epoch}", closestWeatherDateHandler)
 	router.HandleFunc("/api/date/wave/{station}/{epoch}", dateWaveIDHandler)
 	router.HandleFunc("/api/date/weather/{station}/{epoch}", dateWeatherIDHandler)
+	router.HandleFunc("/charttest", chartTestHandle)
 
 	http.Handle("/", router)
 }
@@ -51,6 +52,30 @@ func apiDocHandler(w http.ResponseWriter, r *http.Request) {
 	if err := apiDocTemplate.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func chartTestHandle(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	exportURL := "http://export.highcharts.com"
+	data := url.Values{}
+	data.Set("content", "options")
+	data.Set("options", "{xAxis: {categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']},series: [{data: [29.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]}]};")
+	data.Set("type", "image/png")
+	data.Set("constr", "Chart")
+
+	chartResp, err := client.PostForm(exportURL, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	w.Write(body)
 }
 
 func findAllStationsHandler(w http.ResponseWriter, r *http.Request) {
