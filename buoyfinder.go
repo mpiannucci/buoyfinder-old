@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func chartTestHandle(w http.ResponseWriter, r *http.Request) {
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
 
-	chartResp, err := client.PostForm(exportURL, data)
+	resp, err := client.PostForm(exportURL, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -75,6 +76,8 @@ func chartTestHandle(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(body)
 }
 
