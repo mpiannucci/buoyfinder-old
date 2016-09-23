@@ -63,7 +63,7 @@ func chartTestHandle(w http.ResponseWriter, r *http.Request) {
 	exportURL := "http://export.highcharts.com"
 	data := url.Values{}
 	data.Set("content", "options")
-	data.Set("options", "{xAxis: {categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']},series: [{data: [29.9, 71.5, 106.4, 129.2, 144.0, 176.0, 135.6, 148.5, 216.4, 194.1, 95.6, 54.4]}]};")
+	data.Set("options", "{chart: {polar: true, type: 'column'}, title: {text: 'Station 44097: Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid 0/23/2016 11:30', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360}, yAxis: {min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: [[180, 0.6], [93, 0.3], [161, 0.9]], pointPlacement: 'on', colorByPoint: true}]};")
 	data.Set("width", "1200")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
