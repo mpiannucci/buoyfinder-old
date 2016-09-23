@@ -1,0 +1,20 @@
+{{ define "content" }}
+
+<div class="container-fluid">
+    <div class="row header-row">
+        <div class="col-lg-12">
+            <div class="container">
+                <h1>NDBC Station {{.BuoyStationID}}</h1>
+            </div>
+        </div>
+    </div>
+    <div class="row spectra-row">
+        <div class="container">
+            <div class="col-lg-12">
+                <img class="img-responsive" src='data:image/png;base64,{{.DirectionalSpectraPlot}}'>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ end }}

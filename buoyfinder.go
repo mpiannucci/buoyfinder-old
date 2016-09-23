@@ -1,6 +1,7 @@
 package buoyfinder
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -20,25 +21,34 @@ import (
 )
 
 var indexTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/index.html"))
+var buoyTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/buoy.html"))
 var apiDocTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/apidoc.html"))
 
 func init() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexHandler)
+
+	// API
 	router.HandleFunc("/api", apiDocHandler)
 	router.HandleFunc("/api/stations", findAllStationsHandler)
 	router.HandleFunc("/api/stationinfo/{station}", findStationInfoHandler)
+	router.HandleFunc("/api/latest/wave/charts{lat}/{lon}", closestLatestWaveChartsHandler)
+	router.HandleFunc("/api/latest/wave/charts/{station}", latestWaveIDChartsHandler)
 	router.HandleFunc("/api/latest/wave/{lat}/{lon}", closestLatestWaveHandler)
 	router.HandleFunc("/api/latest/weather/{lat}/{lon}", closestLatestWeatherHandler)
 	router.HandleFunc("/api/latest/wave/{station}", latestWaveIDHandler)
 	router.HandleFunc("/api/latest/weather/{station}", latestWeatherIDHandler)
 	router.HandleFunc("/api/latest/{lat}/{lon}", closestLatestHandler)
 	router.HandleFunc("/api/latest/{station}", latestIDHandler)
+	router.HandleFunc("/api/date/wave/charts/{lat}/{lon}/{epoch}", closestWaveChartsDateHandler)
+	router.HandleFunc("/api/date/wave/charts/{station}/{epoch}", dateWaveIDChartsHandler)
 	router.HandleFunc("/api/date/wave/{lat}/{lon}/{epoch}", closestWaveDateHandler)
 	router.HandleFunc("/api/date/weather/{lat}/{lon}/{epoch}", closestWeatherDateHandler)
 	router.HandleFunc("/api/date/wave/{station}/{epoch}", dateWaveIDHandler)
 	router.HandleFunc("/api/date/weather/{station}/{epoch}", dateWeatherIDHandler)
-	router.HandleFunc("/charttest", chartTestHandle)
+
+	// Buoy Web Views
+	router.HandleFunc("/buoy/{station}", buoyViewHandler)
 
 	http.Handle("/", router)
 }
@@ -49,37 +59,51 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func apiDocHandler(w http.ResponseWriter, r *http.Request) {
-	if err := apiDocTemplate.Execute(w, nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func chartTestHandle(w http.ResponseWriter, r *http.Request) {
+func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	ctxParent := appengine.NewContext(r)
 	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
 	client := urlfetch.Client(ctx)
 
-	exportURL := "http://export.highcharts.com"
-	data := url.Values{}
-	data.Set("content", "options")
-	data.Set("options", "{chart: {polar: true, type: 'column'}, title: {text: 'Station 44097: Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid 0/23/2016 11:30', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360}, yAxis: {min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: [[180, 0.6], [93, 0.3], [161, 0.9]], pointPlacement: 'on', colorByPoint: true}]};")
-	data.Set("width", "1200")
-	data.Set("type", "image/png")
-	data.Set("constr", "Chart")
+	vars := mux.Vars(r)
 
-	resp, err := client.PostForm(exportURL, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// Grab the user vars
+	stationID := vars["station"]
+	requestedDate := time.Now()
+
+	// Create the requested buoy
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
+
+	count := int(time.Since(requestedDate).Hours()*2) + 1
+	fetchBuoyError := fetchDetailedWaveBuoyData(client, requestedBuoy, count)
+	if fetchBuoyError != nil {
+		http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
 
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write(body)
+	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, stationID, requestedBuoyData)
+	if directionalError != nil {
+		directionalPlot = ""
+	}
+
+	requestedBuoyContainer := ClosestBuoy{
+		RequestedDate:          requestedDate,
+		TimeDiffFound:          timeDiff,
+		BuoyStationID:          requestedBuoy.StationID,
+		BuoyData:               requestedBuoyData,
+		DirectionalSpectraPlot: directionalPlot,
+	}
+
+	if err := buoyTemplate.Execute(w, requestedBuoyContainer); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func apiDocHandler(w http.ResponseWriter, r *http.Request) {
+	if err := apiDocTemplate.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func findAllStationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +188,64 @@ func closestWaveDateHandler(w http.ResponseWriter, r *http.Request) {
 		BuoyStationID:     closestBuoy.StationID,
 		BuoyLocation:      *closestBuoy.Location,
 		BuoyData:          closestBuoyData,
+	}
+
+	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
+	if closestBuoyJsonErr != nil {
+		http.Error(w, closestBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(closestBuoyJson)
+}
+
+func closestWaveChartsDateHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+
+	// Grab the user vars
+	latitude, _ := strconv.ParseFloat(vars["lat"], 64)
+	longitude, _ := strconv.ParseFloat(vars["lon"], 64)
+	rawdate, _ := strconv.ParseInt(vars["epoch"], 10, 64)
+
+	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
+	requestedDate := time.Unix(rawdate, 0)
+
+	// Find the closest buoy
+	closestBuoy, closestError := fetchClosestBuoy(client, requestedLocation)
+	if closestError != nil {
+		http.Error(w, closestError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get the buoy data
+	count := int(time.Since(requestedDate).Hours())
+	fetchBuoyError := fetchDetailedWaveBuoyData(client, closestBuoy, count)
+	if fetchBuoyError != nil {
+		http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	closestBuoyData, timeDiff := closestBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, closestBuoy.StationID, closestBuoyData)
+	if directionalError != nil {
+		directionalPlot = ""
+	}
+
+	closestBuoyContainer := ClosestBuoy{
+		RequestedLocation:      requestedLocation,
+		RequestedDate:          requestedDate,
+		TimeDiffFound:          timeDiff,
+		BuoyStationID:          closestBuoy.StationID,
+		BuoyLocation:           *closestBuoy.Location,
+		BuoyData:               closestBuoyData,
+		DirectionalSpectraPlot: directionalPlot,
 	}
 
 	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
@@ -334,6 +416,63 @@ func closestLatestWaveHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(closestBuoyJson)
 }
 
+func closestLatestWaveChartsHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+
+	// Grab the user vars
+	latitude, _ := strconv.ParseFloat(vars["lat"], 64)
+	longitude, _ := strconv.ParseFloat(vars["lon"], 64)
+	rawdate, _ := strconv.ParseInt(vars["epoch"], 10, 64)
+
+	requestedLocation := surfnerd.NewLocationForLatLong(latitude, longitude)
+	requestedDate := time.Unix(rawdate, 0)
+
+	// Find the closest buoy
+	closestBuoy, closestError := fetchClosestBuoy(client, requestedLocation)
+	if closestError != nil {
+		http.Error(w, closestError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get the buoy data
+	fetchBuoyError := fetchDetailedWaveBuoyData(client, closestBuoy, 1)
+	if fetchBuoyError != nil {
+		http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	closestBuoyData, timeDiff := closestBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, closestBuoy.StationID, closestBuoyData)
+	if directionalError != nil {
+		directionalPlot = ""
+	}
+
+	closestBuoyContainer := ClosestBuoy{
+		RequestedLocation:      requestedLocation,
+		RequestedDate:          requestedDate,
+		TimeDiffFound:          timeDiff,
+		BuoyStationID:          closestBuoy.StationID,
+		BuoyLocation:           *closestBuoy.Location,
+		BuoyData:               closestBuoyData,
+		DirectionalSpectraPlot: directionalPlot,
+	}
+
+	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
+	if closestBuoyJsonErr != nil {
+		http.Error(w, closestBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(closestBuoyJson)
+}
+
 func closestLatestWeatherHandler(w http.ResponseWriter, r *http.Request) {
 	ctxParent := appengine.NewContext(r)
 	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
@@ -468,6 +607,51 @@ func latestWaveIDHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestedBuoyJson)
 }
 
+func latestWaveIDChartsHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+	stationID := vars["station"]
+
+	// Find the closest buoy
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
+
+	// Get the buoy data
+	buoyFetchError := fetchDetailedWaveBuoyData(client, requestedBuoy, 1)
+	if buoyFetchError != nil {
+		http.Error(w, buoyFetchError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	requestedDate := time.Now()
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, stationID, requestedBuoyData)
+	if directionalError != nil {
+		directionalPlot = ""
+	}
+
+	requestedBuoyContainer := ClosestBuoy{
+		RequestedDate:          requestedDate,
+		TimeDiffFound:          timeDiff,
+		BuoyStationID:          requestedBuoy.StationID,
+		BuoyData:               requestedBuoyData,
+		DirectionalSpectraPlot: directionalPlot,
+	}
+
+	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
+	if requestedBuoyJsonErr != nil {
+		http.Error(w, requestedBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(requestedBuoyJson)
+}
+
 func latestWeatherIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctxParent := appengine.NewContext(r)
 	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
@@ -537,6 +721,55 @@ func dateWaveIDHandler(w http.ResponseWriter, r *http.Request) {
 		TimeDiffFound: timeDiff,
 		BuoyStationID: requestedBuoy.StationID,
 		BuoyData:      requestedBuoyData,
+	}
+
+	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
+	if requestedBuoyJsonErr != nil {
+		http.Error(w, requestedBuoyJsonErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(requestedBuoyJson)
+}
+
+func dateWaveIDChartsHandler(w http.ResponseWriter, r *http.Request) {
+	ctxParent := appengine.NewContext(r)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	client := urlfetch.Client(ctx)
+
+	vars := mux.Vars(r)
+
+	// Grab the user vars
+	stationID := vars["station"]
+	rawdate, _ := strconv.ParseInt(vars["epoch"], 10, 64)
+
+	requestedDate := time.Unix(rawdate, 0)
+
+	// Create the requested buoy
+	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
+
+	count := int(time.Since(requestedDate).Hours() * 2)
+	fetchBuoyError := fetchDetailedWaveBuoyData(client, requestedBuoy, count)
+	if fetchBuoyError != nil {
+		http.Error(w, fetchBuoyError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
+
+	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, stationID, requestedBuoyData)
+	if directionalError != nil {
+		directionalPlot = ""
+	}
+
+	requestedBuoyContainer := ClosestBuoy{
+		RequestedDate:          requestedDate,
+		TimeDiffFound:          timeDiff,
+		BuoyStationID:          requestedBuoy.StationID,
+		BuoyData:               requestedBuoyData,
+		DirectionalSpectraPlot: directionalPlot,
 	}
 
 	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
@@ -690,4 +923,35 @@ func fetchDetailedWaveBuoyData(client *http.Client, buoy *surfnerd.Buoy, count i
 	}
 
 	return nil
+}
+
+func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
+	values := "["
+	for index, swell := range buoyData.SwellComponents {
+		if index > 0 {
+			values += ","
+		}
+		values += "[" + strconv.FormatFloat(swell.Direction, 'f', 2, 64) + "," + strconv.FormatFloat(swell.MaxEnergy, 'f', 2, 64) + "]"
+	}
+	values += "]"
+
+	buoyTime := buoyData.Date.Format("01/02/2006 15:04 UTC")
+
+	exportURL := "http://export.highcharts.com"
+	data := url.Values{}
+	data.Set("content", "options")
+	data.Set("options", "{chart: {polar: true, type: 'column', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0]}, title: {text: 'Station "+stationID+": Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360, minPadding: 0, maxPadding: 0}, yAxis: {min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: "+values+", pointPlacement: 'on', colorByPoint: true}]};")
+	data.Set("scale", "3")
+	data.Set("type", "image/png")
+	data.Set("constr", "Chart")
+
+	resp, err := client.PostForm(exportURL, data)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	rawChart, err := ioutil.ReadAll(resp.Body)
+	encodedChart := base64.StdEncoding.EncodeToString(rawChart)
+	return encodedChart, err
 }
