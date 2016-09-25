@@ -7,6 +7,7 @@ import (
 	"errors"
 	"html/template"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -20,8 +21,12 @@ import (
 	"google.golang.org/appengine/urlfetch"
 )
 
+var funcMap = template.FuncMap{
+	"ToFixedPoint": ToFixedPoint,
+}
+
 var indexTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/index.html"))
-var buoyTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/buoy.html"))
+var buoyTemplate = template.Must(template.New("base.html").Funcs(funcMap).ParseFiles("templates/base.html", "templates/buoy.html"))
 var apiDocTemplate = template.Must(template.New("base.html").Funcs(nil).ParseFiles("templates/base.html", "templates/apidoc.html"))
 
 func init() {
@@ -988,11 +993,11 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 
 func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
 	values := "["
-	for index, swell := range buoyData.SwellComponents {
+	for index, freq := range buoyData.WaveSpectra.Frequencies {
 		if index > 0 {
 			values += ","
 		}
-		values += strconv.FormatFloat(swell.MaxEnergy, 'f', 2, 64)
+		values += "[" + strconv.FormatFloat(1.0/freq, 'f', 2, 64) + "," + strconv.FormatFloat(buoyData.WaveSpectra.Energies[index], 'f', 2, 64) + "]"
 	}
 	values += "]"
 
@@ -1001,7 +1006,7 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 	exportURL := "http://export.highcharts.com"
 	data := url.Values{}
 	data.Set("content", "options")
-	data.Set("options", "{chart: {type: 'line'}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
+	data.Set("options", "{chart: {type: 'line'}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, title: {text: 'Period (s)'}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
 	data.Set("scale", "3")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
@@ -1015,4 +1020,13 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 	rawChart, err := ioutil.ReadAll(resp.Body)
 	encodedChart := base64.StdEncoding.EncodeToString(rawChart)
 	return encodedChart, err
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func ToFixedPoint(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num*output)) / output
 }
