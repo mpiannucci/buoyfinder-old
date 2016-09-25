@@ -7,11 +7,12 @@ import (
 )
 
 type ClosestBuoy struct {
-	RequestedLocation      surfnerd.Location
-	RequestedDate          time.Time
-	TimeDiffFound          time.Duration
-	BuoyStationID          string
-	BuoyLocation           surfnerd.Location
-	BuoyData               surfnerd.BuoyDataItem
-	DirectionalSpectraPlot string `json:",omitempty"`
+	RequestedLocation       surfnerd.Location
+	RequestedDate           time.Time
+	TimeDiffFound           time.Duration
+	BuoyStationID           string
+	BuoyLocation            surfnerd.Location
+	BuoyData                surfnerd.BuoyDataItem
+	DirectionalSpectraPlot  string `json:",omitempty"`
+	SpectraDistributionPlot string `json:",omitempty"`
 }

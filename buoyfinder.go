@@ -87,12 +87,18 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	if spectraError != nil {
+		spectraPlot = ""
+	}
+
 	requestedBuoyContainer := ClosestBuoy{
-		RequestedDate:          requestedDate,
-		TimeDiffFound:          timeDiff,
-		BuoyStationID:          requestedBuoy.StationID,
-		BuoyData:               requestedBuoyData,
-		DirectionalSpectraPlot: directionalPlot,
+		RequestedDate:           requestedDate,
+		TimeDiffFound:           timeDiff,
+		BuoyStationID:           requestedBuoy.StationID,
+		BuoyData:                requestedBuoyData,
+		DirectionalSpectraPlot:  directionalPlot,
+		SpectraDistributionPlot: spectraPlot,
 	}
 
 	if err := buoyTemplate.Execute(w, requestedBuoyContainer); err != nil {
@@ -238,14 +244,20 @@ func closestWaveChartsDateHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	if spectraError != nil {
+		spectraPlot = ""
+	}
+
 	closestBuoyContainer := ClosestBuoy{
-		RequestedLocation:      requestedLocation,
-		RequestedDate:          requestedDate,
-		TimeDiffFound:          timeDiff,
-		BuoyStationID:          closestBuoy.StationID,
-		BuoyLocation:           *closestBuoy.Location,
-		BuoyData:               closestBuoyData,
-		DirectionalSpectraPlot: directionalPlot,
+		RequestedLocation:       requestedLocation,
+		RequestedDate:           requestedDate,
+		TimeDiffFound:           timeDiff,
+		BuoyStationID:           closestBuoy.StationID,
+		BuoyLocation:            *closestBuoy.Location,
+		BuoyData:                closestBuoyData,
+		DirectionalSpectraPlot:  directionalPlot,
+		SpectraDistributionPlot: spectraPlot,
 	}
 
 	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
@@ -452,14 +464,20 @@ func closestLatestWaveChartsHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	if spectraError != nil {
+		spectraPlot = ""
+	}
+
 	closestBuoyContainer := ClosestBuoy{
-		RequestedLocation:      requestedLocation,
-		RequestedDate:          requestedDate,
-		TimeDiffFound:          timeDiff,
-		BuoyStationID:          closestBuoy.StationID,
-		BuoyLocation:           *closestBuoy.Location,
-		BuoyData:               closestBuoyData,
-		DirectionalSpectraPlot: directionalPlot,
+		RequestedLocation:       requestedLocation,
+		RequestedDate:           requestedDate,
+		TimeDiffFound:           timeDiff,
+		BuoyStationID:           closestBuoy.StationID,
+		BuoyLocation:            *closestBuoy.Location,
+		BuoyData:                closestBuoyData,
+		DirectionalSpectraPlot:  directionalPlot,
+		SpectraDistributionPlot: spectraPlot,
 	}
 
 	closestBuoyJson, closestBuoyJsonErr := json.MarshalIndent(&closestBuoyContainer, "", "    ")
@@ -633,12 +651,18 @@ func latestWaveIDChartsHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	if spectraError != nil {
+		spectraPlot = ""
+	}
+
 	requestedBuoyContainer := ClosestBuoy{
-		RequestedDate:          requestedDate,
-		TimeDiffFound:          timeDiff,
-		BuoyStationID:          requestedBuoy.StationID,
-		BuoyData:               requestedBuoyData,
-		DirectionalSpectraPlot: directionalPlot,
+		RequestedDate:           requestedDate,
+		TimeDiffFound:           timeDiff,
+		BuoyStationID:           requestedBuoy.StationID,
+		BuoyData:                requestedBuoyData,
+		DirectionalSpectraPlot:  directionalPlot,
+		SpectraDistributionPlot: spectraPlot,
 	}
 
 	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
@@ -764,12 +788,18 @@ func dateWaveIDChartsHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	if spectraError != nil {
+		spectraPlot = ""
+	}
+
 	requestedBuoyContainer := ClosestBuoy{
-		RequestedDate:          requestedDate,
-		TimeDiffFound:          timeDiff,
-		BuoyStationID:          requestedBuoy.StationID,
-		BuoyData:               requestedBuoyData,
-		DirectionalSpectraPlot: directionalPlot,
+		RequestedDate:           requestedDate,
+		TimeDiffFound:           timeDiff,
+		BuoyStationID:           requestedBuoy.StationID,
+		BuoyData:                requestedBuoyData,
+		DirectionalSpectraPlot:  directionalPlot,
+		SpectraDistributionPlot: spectraPlot,
 	}
 
 	requestedBuoyJson, requestedBuoyJsonErr := json.MarshalIndent(&requestedBuoyContainer, "", "    ")
@@ -941,6 +971,37 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 	data := url.Values{}
 	data.Set("content", "options")
 	data.Set("options", "{chart: {polar: true, type: 'column', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360, minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: "+values+", pointPlacement: 'on', colorByPoint: true}]};")
+	data.Set("scale", "3")
+	data.Set("type", "image/png")
+	data.Set("constr", "Chart")
+
+	resp, err := client.PostForm(exportURL, data)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	rawChart, err := ioutil.ReadAll(resp.Body)
+	encodedChart := base64.StdEncoding.EncodeToString(rawChart)
+	return encodedChart, err
+}
+
+func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyData) (string, error) {
+	values := "["
+	for index, swell := range buoyData.SwellComponents {
+		if index > 0 {
+			values += ","
+		}
+		values += strconv.FormatFloat(swell.MaxEnergy, 'f', 2, 64)
+	}
+	values += "]"
+
+	buoyTime := buoyData.Date.Format("01/02/2006 15:04 UTC")
+
+	exportURL := "http://export.highcharts.com"
+	data := url.Values{}
+	data.Set("content", "options")
+	data.Set("options", "{chart: {type: 'line', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
 	data.Set("scale", "3")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
