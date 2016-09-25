@@ -244,7 +244,7 @@ func closestWaveChartsDateHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
-	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, closestBuoy.StationID, closestBuoyData)
 	if spectraError != nil {
 		spectraPlot = ""
 	}
@@ -464,7 +464,7 @@ func closestLatestWaveChartsHandler(w http.ResponseWriter, r *http.Request) {
 		directionalPlot = ""
 	}
 
-	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
+	spectraPlot, spectraError := fetchSpectraDistributionChart(client, closestBuoy.StationID, closestBuoyData)
 	if spectraError != nil {
 		spectraPlot = ""
 	}
@@ -986,7 +986,7 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 	return encodedChart, err
 }
 
-func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyData) (string, error) {
+func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
 	values := "["
 	for index, swell := range buoyData.SwellComponents {
 		if index > 0 {
@@ -1001,7 +1001,7 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 	exportURL := "http://export.highcharts.com"
 	data := url.Values{}
 	data.Set("content", "options")
-	data.Set("options", "{chart: {type: 'line', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
+	data.Set("options", "{chart: {type: 'line'}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
 	data.Set("scale", "3")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
