@@ -98,9 +98,9 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// For now convert the swell to feet
-	requestedBuoyData.WaveSummary.ConvertToImperialUnits()
+	requestedBuoyData.WaveSummary.ChangeUnits(surfnerd.English)
 	for i, _ := range requestedBuoyData.SwellComponents {
-		requestedBuoyData.SwellComponents[i].ConvertToImperialUnits()
+		requestedBuoyData.SwellComponents[i].ChangeUnits(surfnerd.English)
 	}
 
 	requestedBuoyContainer := ClosestBuoy{
@@ -363,9 +363,9 @@ func closestLatestHandler(w http.ResponseWriter, r *http.Request) {
 	requestedDate := time.Now()
 	closestBuoyData, timeDiff := closestBuoy.FindConditionsForDateAndTime(requestedDate)
 
-	closestBuoyData.WaveSummary.ConvertToMetricUnits()
+	closestBuoyData.WaveSummary.ChangeUnits(surfnerd.Metric)
 	for index, _ := range closestBuoyData.SwellComponents {
-		closestBuoyData.SwellComponents[index].ConvertToMetricUnits()
+		closestBuoyData.SwellComponents[index].ChangeUnits(surfnerd.Metric)
 	}
 
 	closestBuoyContainer := ClosestBuoy{
@@ -574,9 +574,9 @@ func latestIDHandler(w http.ResponseWriter, r *http.Request) {
 	requestedDate := time.Now()
 	requestedBuoyData, timeDiff := requestedBuoy.FindConditionsForDateAndTime(requestedDate)
 
-	requestedBuoyData.WaveSummary.ConvertToMetricUnits()
+	requestedBuoyData.WaveSummary.ChangeUnits(surfnerd.Metric)
 	for index, _ := range requestedBuoyData.SwellComponents {
-		requestedBuoyData.SwellComponents[index].ConvertToMetricUnits()
+		requestedBuoyData.SwellComponents[index].ChangeUnits(surfnerd.Metric)
 	}
 
 	requestedBuoyContainer := ClosestBuoy{
