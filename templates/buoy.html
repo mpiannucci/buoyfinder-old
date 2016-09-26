@@ -9,10 +9,14 @@
         </div>
     </div>
     <div class="row spectra-row">
-        <div class="container">
-            <div class="col-lg-12">
-                <div>
-                </div>
+        <div class="col-lg-12">
+            <div class="container">
+                <h2>Wave Summary</h2>
+                <h4>{{ ToFixedPoint .BuoyData.WaveSummary.WaveHeight 2 }} feet at {{ ToFixedPoint .BuoyData.WaveSummary.Period 2 }} seconds {{ ToFixedPoint .BuoyData.WaveSummary.Direction 2 }} {{ .BuoyData.WaveSummary.CompassDirection }}</h4>
+                <h2>Swell Components</h2>
+                {{ range $swell := .BuoyData.SwellComponents }}
+                    <h4>{{ ToFixedPoint $swell.WaveHeight 2 }} feet at {{ ToFixedPoint $swell.Period 2 }} seconds {{ ToFixedPoint $swell.Direction 2 }} {{ $swell.CompassDirection }}</h4>
+                {{ end }}
                 <img class="img-responsive" src='data:image/png;base64,{{.DirectionalSpectraPlot}}'>
                 <img class="img-responsive" src='data:image/png;base64,{{.SpectraDistributionPlot}}'>
             </div>

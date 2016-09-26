@@ -97,6 +97,12 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 		spectraPlot = ""
 	}
 
+	// For now convert the swell to feet
+	requestedBuoyData.WaveSummary.ConvertToImperialUnits()
+	for i, _ := range requestedBuoyData.SwellComponents {
+		requestedBuoyData.SwellComponents[i].ConvertToImperialUnits()
+	}
+
 	requestedBuoyContainer := ClosestBuoy{
 		RequestedDate:           requestedDate,
 		TimeDiffFound:           timeDiff,
