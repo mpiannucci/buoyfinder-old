@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"math"
@@ -967,21 +968,29 @@ func fetchDetailedWaveBuoyData(client *http.Client, buoy *surfnerd.Buoy, count i
 }
 
 func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
+	// Create the color gradient
+	gradient := NewGradient()
+
 	values := "["
+	colors := "["
 	for index, energy := range buoyData.WaveSpectra.Energies {
 		if index > 0 {
 			values += ","
+			colors += ","
 		}
 		values += "[" + strconv.FormatFloat(buoyData.WaveSpectra.Angles[index], 'f', 2, 64) + "," + strconv.FormatFloat(energy, 'f', 2, 64) + "]"
+		gradColor := gradient.GetInterpolatedColorFor(buoyData.WaveSpectra.Frequencies[index] / buoyData.WaveSpectra.Frequencies[len(buoyData.WaveSpectra.Frequencies)])
+		colors += fmt.Sprintf("rgba(%3.0f, %3.0f, %3.0f)", gradColor.R, gradColor.G, gradColor.B, 0.6)
 	}
 	values += "]"
+	colors += "]"
 
 	buoyTime := buoyData.Date.Format("01/02/2006 15:04 UTC")
 
 	exportURL := "http://export.highcharts.com"
 	data := url.Values{}
 	data.Set("content", "options")
-	data.Set("options", "{chart: {polar: true, type: 'column', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360, minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: "+values+", pointPlacement: 'on', colorByPoint: true, }]};")
+	data.Set("options", "{chart: {polar: true, type: 'column', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360, minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}}, series: [{type: 'column', name: 'Energy', data: "+values+", pointPlacement: 'on', colorByPoint: true, colors: "+colors+"}]};")
 	data.Set("scale", "3")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
