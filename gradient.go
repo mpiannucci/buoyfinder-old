@@ -40,17 +40,17 @@ func MustParseHex(s string) colorful.Color {
 func NewGradient() Gradient {
 	// The "keypoints" of the gradient.
 	keypoints := Gradient{
-		{MustParseHex("#9e0142"), 0.0},
-		{MustParseHex("#d53e4f"), 0.1},
-		{MustParseHex("#f46d43"), 0.2},
-		{MustParseHex("#fdae61"), 0.3},
-		{MustParseHex("#fee090"), 0.4},
-		{MustParseHex("#ffffbf"), 0.5},
-		{MustParseHex("#e6f598"), 0.6},
-		{MustParseHex("#abdda4"), 0.7},
-		{MustParseHex("#66c2a5"), 0.8},
-		{MustParseHex("#3288bd"), 0.9},
-		{MustParseHex("#5e4fa2"), 1.0},
+		{MustParseHex("#9e0142"), 0.025},
+		{MustParseHex("#d53e4f"), 0.045},
+		{MustParseHex("#f46d43"), 0.065},
+		{MustParseHex("#fdae61"), 0.085},
+		{MustParseHex("#fee090"), 0.105},
+		{MustParseHex("#ffffbf"), 0.130},
+		{MustParseHex("#e6f598"), 0.155},
+		{MustParseHex("#abdda4"), 0.180},
+		{MustParseHex("#66c2a5"), 0.230},
+		{MustParseHex("#3288bd"), 0.350},
+		{MustParseHex("#5e4fa2"), 0.580},
 	}
 
 	return keypoints

@@ -979,8 +979,8 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 			colors += ","
 		}
 		values += "[" + strconv.FormatFloat(buoyData.WaveSpectra.Angles[index], 'f', 2, 64) + "," + strconv.FormatFloat(energy, 'f', 2, 64) + "]"
-		gradColor := gradient.GetInterpolatedColorFor(buoyData.WaveSpectra.Frequencies[index] / (buoyData.WaveSpectra.Frequencies[len(buoyData.WaveSpectra.Frequencies) - 1] + 0.01))
-		colors += fmt.Sprintf("'rgba(%3.0f, %3.0f, %3.0f, %1.1f)'", gradColor.R*255.0, gradColor.G*255.0, gradColor.B*255.0, 0.6)
+		gradColor := gradient.GetInterpolatedColorFor(buoyData.WaveSpectra.Frequencies[index])
+		colors += fmt.Sprintf("'rgba(%3.0f, %3.0f, %3.0f, %1.1f)'", gradColor.R*255.0, gradColor.G*255.0, gradColor.B*255.0, 0.5)
 	}
 	values += "]"
 	colors += "]"
