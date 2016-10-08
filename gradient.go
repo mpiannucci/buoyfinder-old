@@ -42,7 +42,7 @@ func NewGradient() Gradient {
 	keypoints := Gradient{
 		{MustParseHex("#5e4fa2"), 3.0},
 		{MustParseHex("#3288bd"), 4.0},
-		{MustParseHex("#66c2a5"), 5.0,
+		{MustParseHex("#66c2a5"), 5.0},
 		{MustParseHex("#abdda4"), 6.0},
 		{MustParseHex("#e6f598"), 7.0},
 		{MustParseHex("#ffffbf"), 8.0},
