@@ -1,7 +1,6 @@
 package buoyfinder
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -19,7 +18,6 @@ import (
 	"github.com/mpiannucci/surfnerd"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 )
 
@@ -91,16 +89,16 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 
 	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, stationID, requestedBuoyData)
 	if directionalError != nil {
-		rawChartData, _ := base64.StdEncoding.DecodeString(directionalPlot)
-		log.Debugf(ctx, string(rawChartData))
 		directionalPlot = ""
+	} else {
+		directionalPlot = "https://export.highcharts.com/" + directionalPlot
 	}
 
 	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
 	if spectraError != nil {
-		rawChartData, _ := base64.StdEncoding.DecodeString(spectraPlot)
-		log.Debugf(ctx, string(rawChartData))
 		spectraPlot = ""
+	} else {
+		spectraPlot = "https://export.highcharts.com/" + spectraPlot
 	}
 
 	// For now convert the swell to feet
@@ -996,19 +994,16 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 	data := url.Values{}
 	data.Set("content", "options")
 	data.Set("options", "{chart: {polar: true, type: 'column', spacing: [0, 0, 0, 0], margin: [20, 0, 0, 0], width: 600, height: 600}, title: {text: 'Station "+stationID+": Directional Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, pane: {startAngle: 0, endAngle: 360}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, tickmarkPlacement: 'on', tickInterval: 45, min: 0, max: 360, minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0, pointPlacement: 'on', pointWidth: 0.6}, column: {colors: "+colors+"}}, series: [{type: 'column', name: 'Energy', data: "+values+", pointPlacement: 'on', colorByPoint: true}]};")
-	data.Set("scale", "1")
+	data.Set("scale", "2")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
+	data.Set("async", "true")
 
 	resp, err := client.PostForm(exportURL, data)
-	if err != nil {
-		return "", err
-	}
 
 	defer resp.Body.Close()
-	rawChart, err := ioutil.ReadAll(resp.Body)
-	encodedChart := base64.StdEncoding.EncodeToString(rawChart)
-	return encodedChart, err
+	plotFile, _ := ioutil.ReadAll(resp.Body)
+	return string(plotFile), err
 }
 
 func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
@@ -1027,19 +1022,16 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 	data := url.Values{}
 	data.Set("content", "options")
 	data.Set("options", "{chart: {type: 'line', width: 600}, title: {text: 'Station "+stationID+": Wave Spectra', style: {font: '10px Helvetica, sans-serif'}}, subtitle: {text: 'Valid "+buoyTime+"', style: {font: '8px Helvetica, sans-serif'}}, legend: {enabled: false}, credits: {enabled: false}, xAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, min: 0, max: 20, title: {text: 'Period (s)'}, gridLineWidth: 1, tickmarkPlacement: 'on', minPadding: 0, maxPadding: 0}, yAxis: {labels: {style: {fontWeight: 'bold', fontSize: '13px'}}, gridLineWidth: 1, min: 0, endOnTick: true, showLastLabel: true, title: {useHTML: true, text: 'Energy (m<sup>2</sup>/Hz)'}, labels: {formatter: function(){return this.value}}, reversedStacks: false}, plotOptions: {series: {stacking: null, shadow: false, groupPadding: 0}}, series: [{type: 'line', name: 'Energy', data: "+values+"}]};")
-	data.Set("scale", "1")
+	data.Set("scale", "2")
 	data.Set("type", "image/png")
 	data.Set("constr", "Chart")
+	data.Set("async", "true")
 
 	resp, err := client.PostForm(exportURL, data)
-	if err != nil {
-		return "", err
-	}
 
 	defer resp.Body.Close()
-	rawChart, err := ioutil.ReadAll(resp.Body)
-	encodedChart := base64.StdEncoding.EncodeToString(rawChart)
-	return encodedChart, err
+	plotFile, _ := ioutil.ReadAll(resp.Body)
+	return string(plotFile), err
 }
 
 func round(num float64) int {

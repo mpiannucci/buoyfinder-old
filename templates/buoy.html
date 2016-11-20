@@ -17,8 +17,8 @@
                 {{ range $swell := .BuoyData.SwellComponents }}
                     <h4>{{ ToFixedPoint $swell.WaveHeight 2 }} feet at {{ ToFixedPoint $swell.Period 2 }} seconds {{ ToFixedPoint $swell.Direction 2 }} {{ $swell.CompassDirection }}</h4>
                 {{ end }}
-                <img class="img-responsive" src='data:image/png;base64,{{.DirectionalSpectraPlot}}'>
-                <img class="img-responsive" src='data:image/png;base64,{{.SpectraDistributionPlot}}'>
+                <img class="img-responsive" src='{{.DirectionalSpectraPlot}}'>
+                <img class="img-responsive" src='{{.SpectraDistributionPlot}}'>
             </div>
         </div>
     </div>
