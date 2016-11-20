@@ -90,15 +90,11 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	directionalPlot, directionalError := fetchDirectionalSpectraChart(client, stationID, requestedBuoyData)
 	if directionalError != nil {
 		directionalPlot = ""
-	} else {
-		directionalPlot = "https://export.highcharts.com/" + directionalPlot
 	}
 
 	spectraPlot, spectraError := fetchSpectraDistributionChart(client, stationID, requestedBuoyData)
 	if spectraError != nil {
 		spectraPlot = ""
-	} else {
-		spectraPlot = "https://export.highcharts.com/" + spectraPlot
 	}
 
 	// For now convert the swell to feet
@@ -1003,7 +999,7 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 
 	defer resp.Body.Close()
 	plotFile, _ := ioutil.ReadAll(resp.Body)
-	return string(plotFile), err
+	return "https://export.highcharts.com/" + string(plotFile), err
 }
 
 func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyData surfnerd.BuoyDataItem) (string, error) {
@@ -1031,7 +1027,7 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 
 	defer resp.Body.Close()
 	plotFile, _ := ioutil.ReadAll(resp.Body)
-	return string(plotFile), err
+	return "https://export.highcharts.com/" + string(plotFile), err
 }
 
 func round(num float64) int {
