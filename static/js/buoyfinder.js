@@ -30,7 +30,7 @@ function initBuoyMap() {
                 title: station.LocationName,
             });
 
-            buoyMarker.content = '<div><h5>' + station.LocationName + '</h5><a href="/buoy/' + station.StationID + '">View Buoy Data for Station ' + station.StationID + '</a></div>';
+            buoyMarker.content = '<div><h5>' + station.LocationName + '</h5><p>Owned by: ' + station.Owner + '</p><p>' + station.PGM + '</p><a href="/buoy/' + station.StationID + '">View Buoy Data for Station ' + station.StationID + '</a></div>';
 
             google.maps.event.addListener(buoyMarker, 'click', function () {
                 buoyInfoPopup.setContent(this.content);

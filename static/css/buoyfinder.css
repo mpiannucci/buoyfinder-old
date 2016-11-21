@@ -43,6 +43,13 @@ body {
 }
 
 /**
+ * Footer
+ */
+#footerRow {
+    margin-top: 10px;
+}
+
+/**
  * Beta tag
  */
 #betaTag {
