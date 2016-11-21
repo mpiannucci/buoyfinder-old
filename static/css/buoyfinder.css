@@ -56,3 +56,10 @@ body {
 #betaTag li > a:hover, a:hover span {
     background-color: #000099 !important;
 }
+
+/**
+ * Buoy Map Page (Index)
+ */
+.buoy-map {
+    height: 90vh;
+}
