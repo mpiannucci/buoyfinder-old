@@ -66,7 +66,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	ctxParent := appengine.NewContext(r)
-	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
+	ctx, _ := context.WithTimeout(ctxParent, 5*time.Second)
 	client := urlfetch.Client(ctx)
 
 	vars := mux.Vars(r)
@@ -76,7 +76,7 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	requestedDate := time.Now()
 
 	// Create the requested buoy
-	requestedBuoy := &surfnerd.Buoy{StationID: stationID}
+	requestedBuoy, _ := fetchBuoyWithID(client, stationID)
 
 	count := int(time.Since(requestedDate).Hours()*2) + 1
 	fetchBuoyError := fetchDetailedWaveBuoyData(client, requestedBuoy, count)
@@ -108,6 +108,7 @@ func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 		TimeDiffFound:           timeDiff,
 		BuoyStationID:           requestedBuoy.StationID,
 		BuoyData:                requestedBuoyData,
+		BuoyLocation:            *requestedBuoy.Location,
 		DirectionalSpectraPlot:  directionalPlot,
 		SpectraDistributionPlot: spectraPlot,
 	}

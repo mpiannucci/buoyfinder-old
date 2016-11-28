@@ -1,20 +1,25 @@
 {{ define "content" }}
 
-<div class="row header-row">
+<div class="row buoy-header-row">
     <div class="col-lg-12">
-        <h1>NDBC Station {{.BuoyStationID}}</h1>
+        <div class="container">
+            <h1>{{.BuoyLocation.LocationName}}</h1>
+            <h3>NDBC Station {{.BuoyStationID}}</h3>
+        </div>
     </div>
 </div>
 <div class="row spectra-row">
     <div class="col-lg-12">
-        <h2>Wave Summary</h2>
-        <h4>{{ ToFixedPoint .BuoyData.WaveSummary.WaveHeight 2 }} feet at {{ ToFixedPoint .BuoyData.WaveSummary.Period 2 }} seconds {{ ToFixedPoint .BuoyData.WaveSummary.Direction 2 }} {{ .BuoyData.WaveSummary.CompassDirection }}</h4>
-        <h2>Swell Components</h2>
-        {{ range $index, $swell := .BuoyData.SwellComponents }}
-            <h4>{{ ToFixedPoint $swell.WaveHeight 2 }} feet at {{ ToFixedPoint $swell.Period 2 }} seconds {{ ToFixedPoint $swell.Direction 2 }} {{ $swell.CompassDirection }}</h4>
-        {{ end }}
-        <img class="img-responsive" src='{{.DirectionalSpectraPlot}}'>
-        <img class="img-responsive" src='{{.SpectraDistributionPlot}}'>
+        <div class="container">
+            <h2>Wave Summary</h2>
+            <h4>{{ ToFixedPoint .BuoyData.WaveSummary.WaveHeight 2 }} feet at {{ ToFixedPoint .BuoyData.WaveSummary.Period 2 }} seconds {{ ToFixedPoint .BuoyData.WaveSummary.Direction 2 }} {{ .BuoyData.WaveSummary.CompassDirection }}</h4>
+            <h2>Swell Components</h2>
+            {{ range $index, $swell := .BuoyData.SwellComponents }}
+                <h4>{{ ToFixedPoint $swell.WaveHeight 2 }} feet at {{ ToFixedPoint $swell.Period 2 }} seconds {{ ToFixedPoint $swell.Direction 2 }} {{ $swell.CompassDirection }}</h4>
+            {{ end }}
+            <img class="img-responsive" src='{{.DirectionalSpectraPlot}}'>
+            <img class="img-responsive" src='{{.SpectraDistributionPlot}}'>
+        </div>
     </div>
 </div>
 
