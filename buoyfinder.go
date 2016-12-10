@@ -33,7 +33,7 @@ func init() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", indexHandler)
 
-	// API
+	// Free API
 	router.HandleFunc("/api", apiDocHandler)
 	router.HandleFunc("/api/stations", findAllStationsHandler)
 	router.HandleFunc("/api/stationinfo/{station}", findStationInfoHandler)
@@ -54,7 +54,6 @@ func init() {
 
 	// Buoy Web Views
 	router.HandleFunc("/buoy/{station}", buoyViewHandler)
-
 	http.Handle("/", router)
 }
 
@@ -66,7 +65,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 func buoyViewHandler(w http.ResponseWriter, r *http.Request) {
 	ctxParent := appengine.NewContext(r)
-	ctx, _ := context.WithTimeout(ctxParent, 5*time.Second)
+	ctx, _ := context.WithTimeout(ctxParent, 20*time.Second)
 	client := urlfetch.Client(ctx)
 
 	vars := mux.Vars(r)
