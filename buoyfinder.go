@@ -987,6 +987,9 @@ func fetchDirectionalSpectraChart(client *http.Client, stationID string, buoyDat
 	data.Set("async", "true")
 
 	resp, err := client.PostForm(exportURL, data)
+	if err != nil {
+		return "", nil
+	}
 
 	defer resp.Body.Close()
 	plotFile, _ := ioutil.ReadAll(resp.Body)
@@ -1015,6 +1018,9 @@ func fetchSpectraDistributionChart(client *http.Client, stationID string, buoyDa
 	data.Set("async", "true")
 
 	resp, err := client.PostForm(exportURL, data)
+	if err != nil {
+		return "", nil
+	}
 
 	defer resp.Body.Close()
 	plotFile, _ := ioutil.ReadAll(resp.Body)
